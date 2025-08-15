@@ -1,5 +1,0 @@
-com\emergencia\api\controller\EmergenciaController.class
-com\emergencia\api\repository\EmergenciaRepository.class
-com\emergencia\api\service\EmergenciaService.class
-com\emergencia\api\ApiEmergenciaApplication.class
-com\emergencia\api\model\Emergencia.class
