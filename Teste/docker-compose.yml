@@ -1,0 +1,189 @@
+version: '3.8'
+
+services:
+  # Node-RED
+  nodered:
+    image: nodered/node-red:latest
+    container_name: nodered-api-integration
+    ports:
+      - "1880:1880"
+    environment:
+      - NODE_ENV=production
+      - TZ=America/Sao_Paulo
+    volumes:
+      - ./data:/data
+      - ./flows.json:/data/flows.json
+      - ./settings.js:/data/settings.js
+      - ./package.json:/data/package.json
+    restart: unless-stopped
+    depends_on:
+      - mysql
+    networks:
+      - nodered-network
+
+  # MySQL Database
+  mysql:
+    image: mysql:8.0
+    container_name: nodered-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_DATABASE: node_red_integration
+      MYSQL_USER: nodered_user
+      MYSQL_PASSWORD: nodered_pass
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./scripts/setup-database.sql:/docker-entrypoint-initdb.d/setup-database.sql
+    restart: unless-stopped
+    networks:
+      - nodered-network
+    command: --default-authentication-plugin=mysql_native_password
+
+  # PostgreSQL (alternativa ao MySQL)
+  postgres:
+    image: postgres:15
+    container_name: nodered-postgres
+    environment:
+      POSTGRES_DB: node_red_integration
+      POSTGRES_USER: nodered_user
+      POSTGRES_PASSWORD: nodered_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - nodered-network
+    profiles:
+      - postgres
+
+  # MongoDB (alternativa)
+  mongodb:
+    image: mongo:6
+    container_name: nodered-mongodb
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: nodered_user
+      MONGO_INITDB_ROOT_PASSWORD: nodered_pass
+      MONGO_INITDB_DATABASE: node_red_integration
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    restart: unless-stopped
+    networks:
+      - nodered-network
+    profiles:
+      - mongodb
+
+  # Redis para cache (opcional)
+  redis:
+    image: redis:7-alpine
+    container_name: nodered-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    networks:
+      - nodered-network
+    profiles:
+      - cache
+
+  # Nginx para proxy reverso (opcional)
+  nginx:
+    image: nginx:alpine
+    container_name: nodered-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/ssl:/etc/nginx/ssl
+    restart: unless-stopped
+    depends_on:
+      - nodered
+    networks:
+      - nodered-network
+    profiles:
+      - nginx
+
+  # Prometheus para monitoramento (opcional)
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: nodered-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    restart: unless-stopped
+    networks:
+      - nodered-network
+    profiles:
+      - monitoring
+
+  # Grafana para dashboards (opcional)
+  grafana:
+    image: grafana/grafana:latest
+    container_name: nodered-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin123
+    volumes:
+      - grafana_data:/var/lib/grafana
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+    networks:
+      - nodered-network
+    profiles:
+      - monitoring
+
+volumes:
+  mysql_data:
+  postgres_data:
+  mongodb_data:
+  redis_data:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  nodered-network:
+    driver: bridge
+
+# Comandos úteis:
+# 
+# Iniciar apenas Node-RED + MySQL:
+# docker-compose up -d nodered mysql
+#
+# Iniciar com PostgreSQL:
+# docker-compose --profile postgres up -d
+#
+# Iniciar com MongoDB:
+# docker-compose --profile mongodb up -d
+#
+# Iniciar com cache Redis:
+# docker-compose --profile cache up -d
+#
+# Iniciar com proxy Nginx:
+# docker-compose --profile nginx up -d
+#
+# Iniciar com monitoramento:
+# docker-compose --profile monitoring up -d
+#
+# Iniciar tudo:
+# docker-compose --profile postgres --profile cache --profile nginx --profile monitoring up -d
+#
+# Parar todos os serviços:
+# docker-compose down
+#
+# Ver logs:
+# docker-compose logs -f nodered
+#
+# Acessar banco MySQL:
+# docker exec -it nodered-mysql mysql -u nodered_user -p node_red_integration
+#
+# Backup do banco:
+# docker exec nodered-mysql mysqldump -u nodered_user -p nodered_pass node_red_integration > backup.sql

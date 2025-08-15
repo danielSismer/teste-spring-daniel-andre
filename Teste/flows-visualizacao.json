@@ -1,0 +1,337 @@
+[
+    {
+        "id": "visualizacao-flow",
+        "label": "Visualização de Dados em Tempo Real",
+        "type": "tab",
+        "disabled": false,
+        "info": "Fluxo para visualizar dados recebidos da API Java sem salvar no banco"
+    },
+    {
+        "id": "http-in-receive",
+        "type": "http in",
+        "z": "visualizacao-flow",
+        "name": "Receber Dados da API Java",
+        "url": "/api/receive",
+        "method": "post",
+        "upload": false,
+        "swaggerDoc": "",
+        "x": 120,
+        "y": 100,
+        "wires": [
+            [
+                "json-parse",
+                "log-recebimento"
+            ]
+        ]
+    },
+    {
+        "id": "json-parse",
+        "type": "json",
+        "z": "visualizacao-flow",
+        "name": "Parsear JSON",
+        "property": "payload",
+        "action": "",
+        "pretty": false,
+        "x": 320,
+        "y": 100,
+        "wires": [
+            [
+                "function-process-data"
+            ]
+        ]
+    },
+    {
+        "id": "function-process-data",
+        "type": "function",
+        "z": "visualizacao-flow",
+        "name": "Processar e Formatar Dados",
+        "func": "// Processar dados recebidos para visualização\nconst data = msg.payload.data;\n\n// Formatar dados para o dashboard\nmsg.payload = {\n    // Dados principais\n    id: data.id || Date.now(),\n    nome: data.nome || 'Sem nome',\n    valor: parseFloat(data.valor) || 0,\n    categoria: data.categoria || 'Geral',\n    \n    // Metadados de processamento\n    recebido_em: new Date().toISOString(),\n    origem: 'API_JAVA',\n    status: 'PROCESSADO',\n    \n    // Dados adicionais (se existirem)\n    fornecedor: data.fornecedor || 'N/A',\n    estoque: data.estoque || 0,\n    descricao: data.descricao || '',\n    \n    // Timestamp de processamento\n    processado_em: new Date().toISOString()\n};\n\n// Adicionar dados para estatísticas\nmsg.payload.valor_formatado = `R$ ${msg.payload.valor.toFixed(2)}`;\nmsg.payload.timestamp_legivel = new Date().toLocaleString('pt-BR');\n\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 520,
+        "y": 100,
+        "wires": [
+            [
+                "function-update-dashboard",
+                "function-update-stats",
+                "function-log-data"
+            ]
+        ]
+    },
+    {
+        "id": "function-update-dashboard",
+        "type": "function",
+        "z": "visualizacao-flow",
+        "name": "Atualizar Dashboard Principal",
+        "func": "// Preparar dados para o dashboard principal\nconst data = msg.payload;\n\n// Enviar para diferentes widgets do dashboard\nmsg.payload = {\n    // Widget de dados recebidos\n    dados_recentes: {\n        id: data.id,\n        nome: data.nome,\n        valor: data.valor_formatado,\n        categoria: data.categoria,\n        recebido_em: data.timestamp_legivel\n    },\n    \n    // Widget de status\n    status: {\n        ultima_atualizacao: data.timestamp_legivel,\n        status: data.status,\n        origem: data.origem\n    },\n    \n    // Widget de valores\n    valores: {\n        valor_atual: data.valor,\n        valor_formatado: data.valor_formatado,\n        categoria: data.categoria\n    }\n};\n\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 720,
+        "y": 80,
+        "wires": [
+            [
+                "dashboard-text-dados",
+                "dashboard-text-status",
+                "dashboard-gauge-valor"
+            ]
+        ]
+    },
+    {
+        "id": "function-update-stats",
+        "type": "function",
+        "z": "visualizacao-flow",
+        "name": "Atualizar Estatísticas",
+        "func": "// Atualizar contadores e estatísticas\nconst data = msg.payload;\n\n// Incrementar contadores globais\nif (!global.contadores) {\n    global.contadores = {\n        total_recebidos: 0,\n        total_valor: 0,\n        categorias: {},\n        ultima_atualizacao: null\n    };\n}\n\n// Atualizar contadores\nglobal.contadores.total_recebidos++;\nglobal.contadores.total_valor += data.valor;\nglobal.contadores.ultima_atualizacao = data.timestamp_legivel;\n\n// Contar por categoria\nif (!global.contadores.categorias[data.categoria]) {\n    global.contadores.categorias[data.categoria] = 0;\n}\nglobal.contadores.categorias[data.categoria]++;\n\n// Preparar dados para widgets de estatísticas\nmsg.payload = {\n    total_recebidos: global.contadores.total_recebidos,\n    total_valor: `R$ ${global.contadores.total_valor.toFixed(2)}`,\n    valor_medio: `R$ ${(global.contadores.total_valor / global.contadores.total_recebidos).toFixed(2)}`,\n    ultima_atualizacao: global.contadores.ultima_atualizacao,\n    categorias: global.contadores.categorias\n};\n\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 720,
+        "y": 120,
+        "wires": [
+            [
+                "dashboard-chart-categorias",
+                "dashboard-text-stats",
+                "dashboard-gauge-total"
+            ]
+        ]
+    },
+    {
+        "id": "function-log-data",
+        "type": "function",
+        "z": "visualizacao-flow",
+        "name": "Log de Dados Recebidos",
+        "func": "// Log detalhado dos dados recebidos\nconst data = msg.payload;\n\n// Log para debug\nnode.log(`📥 Dados recebidos da API Java:`);\nnode.log(`   ID: ${data.id}`);\nnode.log(`   Nome: ${data.nome}`);\nnode.log(`   Valor: ${data.valor_formatado}`);\nnode.log(`   Categoria: ${data.categoria}`);\nnode.log(`   Recebido em: ${data.timestamp_legivel}`);\n\n// Preparar para exibição no log\nmsg.payload = {\n    timestamp: data.timestamp_legivel,\n    id: data.id,\n    nome: data.nome,\n    valor: data.valor_formatado,\n    categoria: data.categoria,\n    origem: data.origem\n};\n\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 720,
+        "y": 160,
+        "wires": [
+            [
+                "log-dados-recebidos"
+            ]
+        ]
+    },
+    {
+        "id": "http-response",
+        "type": "http response",
+        "z": "visualizacao-flow",
+        "name": "Resposta de Sucesso",
+        "statusCode": "200",
+        "headers": {},
+        "x": 920,
+        "y": 100,
+        "wires": []
+    },
+    {
+        "id": "log-recebimento",
+        "type": "debug",
+        "z": "visualizacao-flow",
+        "name": "Log de Recebimento",
+        "active": true,
+        "tosidebar": true,
+        "console": true,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "x": 320,
+        "y": 140,
+        "wires": []
+    },
+    {
+        "id": "log-dados-recebidos",
+        "type": "debug",
+        "z": "visualizacao-flow",
+        "name": "Log de Dados Processados",
+        "active": true,
+        "tosidebar": true,
+        "console": true,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "x": 920,
+        "y": 160,
+        "wires": []
+    },
+    {
+        "id": "inject-refresh",
+        "type": "inject",
+        "z": "visualizacao-flow",
+        "name": "Atualizar Dashboard",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "10",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 120,
+        "y": 200,
+        "wires": [
+            [
+                "function-refresh-dashboard"
+            ]
+        ]
+    },
+    {
+        "id": "function-refresh-dashboard",
+        "type": "function",
+        "z": "visualizacao-flow",
+        "name": "Atualizar Dashboard",
+        "func": "// Atualizar dashboard a cada 10 segundos\nif (global.contadores) {\n    msg.payload = {\n        ultima_atualizacao: new Date().toLocaleString('pt-BR'),\n        status: 'ATIVO',\n        contadores: global.contadores\n    };\n} else {\n    msg.payload = {\n        ultima_atualizacao: new Date().toLocaleString('pt-BR'),\n        status: 'AGUARDANDO DADOS',\n        contadores: {\n            total_recebidos: 0,\n            total_valor: 'R$ 0,00'\n        }\n    };\n}\n\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 320,
+        "y": 200,
+        "wires": [
+            [
+                "dashboard-text-status-geral"
+            ]
+        ]
+    },
+    {
+        "id": "dashboard-text-dados",
+        "type": "ui_text",
+        "z": "visualizacao-flow",
+        "group": "Dados Recebidos",
+        "order": 1,
+        "width": "6",
+        "height": "4",
+        "name": "Últimos Dados",
+        "label": "📥 Dados Recebidos da API Java",
+        "format": "{{msg.payload.dados_recentes.nome}}<br>Valor: {{msg.payload.dados_recentes.valor}}<br>Categoria: {{msg.payload.dados_recentes.categoria}}<br>Recebido: {{msg.payload.dados_recentes.recebido_em}}",
+        "layout": "vertical",
+        "x": 920,
+        "y": 80,
+        "wires": []
+    },
+    {
+        "id": "dashboard-text-status",
+        "type": "ui_text",
+        "z": "visualizacao-flow",
+        "group": "Status do Sistema",
+        "order": 1,
+        "width": "6",
+        "height": "3",
+        "name": "Status",
+        "label": "🔄 Status do Sistema",
+        "format": "Status: {{msg.payload.status.status}}<br>Origem: {{msg.payload.status.origem}}<br>Última Atualização: {{msg.payload.status.ultima_atualizacao}}",
+        "layout": "vertical",
+        "x": 920,
+        "y": 120,
+        "wires": []
+    },
+    {
+        "id": "dashboard-gauge-valor",
+        "type": "ui_gauge",
+        "z": "visualizacao-flow",
+        "group": "Valores",
+        "order": 1,
+        "width": "4",
+        "height": "4",
+        "name": "Valor Atual",
+        "label": "💰 Valor Recebido",
+        "format": "{{value}}",
+        "min": "0",
+        "max": "10000",
+        "colors": [
+            "#00ff00",
+            "#ffff00",
+            "#ff0000"
+        ],
+        "seg1": "3000",
+        "seg2": "7000",
+        "x": 920,
+        "y": 160,
+        "wires": []
+    },
+    {
+        "id": "dashboard-chart-categorias",
+        "type": "ui_chart",
+        "z": "visualizacao-flow",
+        "group": "Estatísticas",
+        "order": 1,
+        "width": "8",
+        "height": "6",
+        "name": "Categorias",
+        "label": "📊 Dados por Categoria",
+        "chartType": "pie",
+        "legend": "true",
+        "xformat": "HH:mm:ss",
+        "interpolate": "linear",
+        "nodata": "Nenhum dado recebido ainda",
+        "dot": false,
+        "ymin": "",
+        "ymax": "",
+        "removeOlder": "1",
+        "removeOlderPoints": "",
+        "removeOlderUnit": "3600",
+        "cutout": 0,
+        "useOneColor": false,
+        "useCustomColors": false,
+        "customColors": "",
+        "x": 920,
+        "y": 200,
+        "wires": []
+    },
+    {
+        "id": "dashboard-text-stats",
+        "type": "ui_text",
+        "z": "visualizacao-flow",
+        "group": "Estatísticas",
+        "order": 2,
+        "width": "4",
+        "height": "6",
+        "name": "Estatísticas",
+        "label": "📈 Estatísticas Gerais",
+        "format": "Total Recebidos: {{msg.payload.total_recebidos}}<br>Valor Total: {{msg.payload.total_valor}}<br>Valor Médio: {{msg.payload.valor_medio}}<br>Última Atualização: {{msg.payload.ultima_atualizacao}}",
+        "layout": "vertical",
+        "x": 920,
+        "y": 240,
+        "wires": []
+    },
+    {
+        "id": "dashboard-gauge-total",
+        "type": "ui_gauge",
+        "z": "visualizacao-flow",
+        "group": "Estatísticas",
+        "order": 3,
+        "width": "4",
+        "height": "6",
+        "name": "Total Recebidos",
+        "label": "📊 Total de Registros",
+        "format": "{{value}}",
+        "min": "0",
+        "max": "1000",
+        "colors": [
+            "#00ff00",
+            "#ffff00",
+            "#ff0000"
+        ],
+        "seg1": "300",
+        "seg2": "700",
+        "x": 920,
+        "y": 280,
+        "wires": []
+    },
+    {
+        "id": "dashboard-text-status-geral",
+        "type": "ui_text",
+        "z": "visualizacao-flow",
+        "group": "Status do Sistema",
+        "order": 2,
+        "width": "6",
+        "height": "3",
+        "name": "Status Geral",
+        "label": "🕐 Status em Tempo Real",
+        "format": "Status: {{msg.payload.status}}<br>Última Atualização: {{msg.payload.ultima_atualizacao}}<br>Total Recebidos: {{msg.payload.contadores.total_recebidos}}<br>Valor Total: {{msg.payload.contadores.total_valor}}",
+        "layout": "vertical",
+        "x": 520,
+        "y": 200,
+        "wires": []
+    }
+]
+

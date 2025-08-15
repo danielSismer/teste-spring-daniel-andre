@@ -1,0 +1,62 @@
+[
+    {
+        "id": "dashboard-tab",
+        "type": "ui_tab",
+        "name": "Monitoramento API Java",
+        "icon": "dashboard",
+        "order": 1,
+        "disabled": false,
+        "hidden": false
+    },
+    {
+        "id": "group-dados-recebidos",
+        "type": "ui_group",
+        "name": "📥 Dados Recebidos",
+        "tab": "dashboard-tab",
+        "order": 1,
+        "width": "12",
+        "collapse": false,
+        "collapsed": false
+    },
+    {
+        "id": "group-status-sistema",
+        "type": "ui_group",
+        "name": "🔄 Status do Sistema",
+        "tab": "dashboard-tab",
+        "order": 2,
+        "width": "12",
+        "collapse": false,
+        "collapsed": false
+    },
+    {
+        "id": "group-valores",
+        "type": "ui_group",
+        "name": "💰 Valores",
+        "tab": "dashboard-tab",
+        "order": 3,
+        "width": "6",
+        "collapse": false,
+        "collapsed": false
+    },
+    {
+        "id": "group-estatisticas",
+        "type": "ui_group",
+        "name": "📊 Estatísticas",
+        "tab": "dashboard-tab",
+        "order": 4,
+        "width": "12",
+        "collapse": false,
+        "collapsed": false
+    },
+    {
+        "id": "group-logs",
+        "type": "ui_group",
+        "name": "📝 Logs em Tempo Real",
+        "tab": "dashboard-tab",
+        "order": 5,
+        "width": "12",
+        "collapse": false,
+        "collapsed": false
+    }
+]
+

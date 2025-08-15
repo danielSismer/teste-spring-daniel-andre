@@ -1,0 +1,348 @@
+[
+    {
+        "id": "consultas-flow",
+        "label": "Consultas de Dados",
+        "type": "tab",
+        "disabled": false,
+        "info": "Fluxos para consultar dados do banco de dados"
+    },
+    {
+        "id": "http-in-consultar",
+        "type": "http in",
+        "z": "consultas-flow",
+        "name": "Consultar Todos os Dados",
+        "url": "/api/consultar",
+        "method": "get",
+        "upload": false,
+        "swaggerDoc": "",
+        "x": 120,
+        "y": 100,
+        "wires": [
+            [
+                "db-select-all"
+            ]
+        ]
+    },
+    {
+        "id": "db-select-all",
+        "type": "mysql",
+        "z": "consultas-flow",
+        "mydb": "mysql-config",
+        "name": "Selecionar Todos",
+        "sql": "SELECT * FROM dados_api ORDER BY created_at DESC",
+        "x": 320,
+        "y": 100,
+        "wires": [
+            [
+                "function-format-response"
+            ]
+        ]
+    },
+    {
+        "id": "function-format-response",
+        "type": "function",
+        "z": "consultas-flow",
+        "name": "Formatar Resposta",
+        "func": "// Formatar resposta para o usuário\nmsg.statusCode = 200;\nmsg.payload = {\n    success: true,\n    count: msg.payload.length,\n    data: msg.payload,\n    timestamp: new Date().toISOString()\n};\n\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 520,
+        "y": 100,
+        "wires": [
+            [
+                "http-response-consultar"
+            ]
+        ]
+    },
+    {
+        "id": "http-response-consultar",
+        "type": "http response",
+        "z": "consultas-flow",
+        "name": "Resposta Consulta",
+        "statusCode": "",
+        "headers": {},
+        "x": 720,
+        "y": 100,
+        "wires": []
+    },
+    {
+        "id": "http-in-consultar-por-id",
+        "type": "http in",
+        "z": "consultas-flow",
+        "name": "Consultar por ID",
+        "url": "/api/consultar/:id",
+        "method": "get",
+        "upload": false,
+        "swaggerDoc": "",
+        "x": 120,
+        "y": 200,
+        "wires": [
+            [
+                "function-extract-id"
+            ]
+        ]
+    },
+    {
+        "id": "function-extract-id",
+        "type": "function",
+        "z": "consultas-flow",
+        "name": "Extrair ID da URL",
+        "func": "// Extrair ID da URL /api/consultar/:id\nconst id = msg.req.params.id;\nmsg.payload = { id: parseInt(id) };\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 320,
+        "y": 200,
+        "wires": [
+            [
+                "db-select-by-id"
+            ]
+        ]
+    },
+    {
+        "id": "db-select-by-id",
+        "type": "mysql",
+        "z": "consultas-flow",
+        "name": "Selecionar por ID",
+        "sql": "SELECT * FROM dados_api WHERE id = ?",
+        "x": 520,
+        "y": 200,
+        "wires": [
+            [
+                "function-check-result"
+            ]
+        ]
+    },
+    {
+        "id": "function-check-result",
+        "type": "function",
+        "z": "consultas-flow",
+        "name": "Verificar Resultado",
+        "func": "// Verificar se encontrou o registro\nif (msg.payload && msg.payload.length > 0) {\n    msg.statusCode = 200;\n    msg.payload = {\n        success: true,\n        data: msg.payload[0],\n        timestamp: new Date().toISOString()\n    };\n} else {\n    msg.statusCode = 404;\n    msg.payload = {\n        success: false,\n        error: \"Registro não encontrado\",\n        timestamp: new Date().toISOString()\n    };\n}\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 720,
+        "y": 200,
+        "wires": [
+            [
+                "http-response-por-id"
+            ]
+        ]
+    },
+    {
+        "id": "http-response-por-id",
+        "type": "http response",
+        "z": "consultas-flow",
+        "name": "Resposta por ID",
+        "statusCode": "",
+        "headers": {},
+        "x": 920,
+        "y": 200,
+        "wires": []
+    },
+    {
+        "id": "http-in-consultar-categoria",
+        "type": "http in",
+        "z": "consultas-flow",
+        "name": "Consultar por Categoria",
+        "url": "/api/consultar/categoria/:categoria",
+        "method": "get",
+        "upload": false,
+        "swaggerDoc": "",
+        "x": 120,
+        "y": 300,
+        "wires": [
+            [
+                "function-extract-categoria"
+            ]
+        ]
+    },
+    {
+        "id": "function-extract-categoria",
+        "type": "function",
+        "z": "consultas-flow",
+        "name": "Extrair Categoria",
+        "func": "// Extrair categoria da URL\nconst categoria = msg.req.params.categoria;\nmsg.payload = { categoria: categoria };\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 320,
+        "y": 300,
+        "wires": [
+            [
+                "db-select-by-categoria"
+            ]
+        ]
+    },
+    {
+        "id": "db-select-by-categoria",
+        "type": "mysql",
+        "z": "consultas-flow",
+        "name": "Selecionar por Categoria",
+        "sql": "SELECT * FROM dados_api WHERE categoria = ? ORDER BY valor DESC",
+        "x": 520,
+        "y": 300,
+        "wires": [
+            [
+                "function-format-categoria"
+            ]
+        ]
+    },
+    {
+        "id": "function-format-categoria",
+        "type": "function",
+        "z": "consultas-flow",
+        "name": "Formatar Categoria",
+        "func": "// Formatar resposta por categoria\nmsg.statusCode = 200;\nmsg.payload = {\n    success: true,\n    categoria: msg.req.params.categoria,\n    count: msg.payload.length,\n    data: msg.payload,\n    valor_total: msg.payload.reduce((sum, item) => sum + parseFloat(item.valor), 0),\n    timestamp: new Date().toISOString()\n};\n\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 720,
+        "y": 300,
+        "wires": [
+            [
+                "http-response-categoria"
+            ]
+        ]
+    },
+    {
+        "id": "http-response-categoria",
+        "type": "http response",
+        "z": "consultas-flow",
+        "name": "Resposta Categoria",
+        "statusCode": "",
+        "headers": {},
+        "x": 920,
+        "y": 300,
+        "wires": []
+    },
+    {
+        "id": "http-in-estatisticas",
+        "type": "http in",
+        "z": "consultas-flow",
+        "name": "Consultar Estatísticas",
+        "url": "/api/estatisticas",
+        "method": "get",
+        "upload": false,
+        "swaggerDoc": "",
+        "x": 120,
+        "y": 400,
+        "wires": [
+            [
+                "db-select-estatisticas"
+            ]
+        ]
+    },
+    {
+        "id": "db-select-estatisticas",
+        "type": "mysql",
+        "z": "consultas-flow",
+        "name": "Selecionar Estatísticas",
+        "sql": "SELECT \n    COUNT(*) as total_registros,\n    COUNT(DISTINCT categoria) as total_categorias,\n    AVG(valor) as valor_medio,\n    SUM(valor) as valor_total,\n    MIN(valor) as valor_minimo,\n    MAX(valor) as valor_maximo,\n    MIN(created_at) as primeiro_registro,\n    MAX(created_at) as ultimo_registro\nFROM dados_api",
+        "x": 320,
+        "y": 400,
+        "wires": [
+            [
+                "function-format-estatisticas"
+            ]
+        ]
+    },
+    {
+        "id": "function-format-estatisticas",
+        "type": "function",
+        "z": "consultas-flow",
+        "name": "Formatar Estatísticas",
+        "func": "// Formatar estatísticas\nconst stats = msg.payload[0];\nmsg.statusCode = 200;\nmsg.payload = {\n    success: true,\n    estatisticas: {\n        total_registros: stats.total_registros,\n        total_categorias: stats.total_categorias,\n        valor_medio: parseFloat(stats.valor_medio).toFixed(2),\n        valor_total: parseFloat(stats.valor_total).toFixed(2),\n        valor_minimo: parseFloat(stats.valor_minimo).toFixed(2),\n        valor_maximo: parseFloat(stats.valor_maximo).toFixed(2),\n        primeiro_registro: stats.primeiro_registro,\n        ultimo_registro: stats.ultimo_registro\n    },\n    timestamp: new Date().toISOString()\n};\n\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 520,
+        "y": 400,
+        "wires": [
+            [
+                "http-response-estatisticas"
+            ]
+        ]
+    },
+    {
+        "id": "http-response-estatisticas",
+        "type": "http response",
+        "z": "consultas-flow",
+        "name": "Resposta Estatísticas",
+        "statusCode": "",
+        "headers": {},
+        "x": 720,
+        "y": 400,
+        "wires": []
+    },
+    {
+        "id": "http-in-buscar",
+        "type": "http in",
+        "z": "consultas-flow",
+        "name": "Buscar por Nome",
+        "url": "/api/buscar",
+        "method": "get",
+        "upload": false,
+        "swaggerDoc": "",
+        "x": 120,
+        "y": 500,
+        "wires": [
+            [
+                "function-extract-query"
+            ]
+        ]
+    },
+    {
+        "id": "function-extract-query",
+        "type": "function",
+        "z": "consultas-flow",
+        "name": "Extrair Query",
+        "func": "// Extrair parâmetro de busca da query string\nconst query = msg.req.query.q || '';\nif (!query) {\n    msg.statusCode = 400;\n    msg.payload = {\n        success: false,\n        error: \"Parâmetro 'q' é obrigatório\",\n        timestamp: new Date().toISOString()\n    };\n    return null;\n}\nmsg.payload = { query: query };\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 320,
+        "y": 500,
+        "wires": [
+            [
+                "db-search-by-name"
+            ]
+        ]
+    },
+    {
+        "id": "db-search-by-name",
+        "type": "mysql",
+        "z": "consultas-flow",
+        "name": "Buscar por Nome",
+        "sql": "SELECT * FROM dados_api WHERE nome LIKE ? ORDER BY nome",
+        "x": 520,
+        "y": 500,
+        "wires": [
+            [
+                "function-format-search"
+            ]
+        ]
+    },
+    {
+        "id": "function-format-search",
+        "type": "function",
+        "z": "consultas-flow",
+        "name": "Formatar Busca",
+        "func": "// Formatar resultado da busca\nconst query = msg.req.query.q;\nmsg.statusCode = 200;\nmsg.payload = {\n    success: true,\n    query: query,\n    count: msg.payload.length,\n    data: msg.payload,\n    timestamp: new Date().toISOString()\n};\n\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 720,
+        "y": 500,
+        "wires": [
+            [
+                "http-response-buscar"
+            ]
+        ]
+    },
+    {
+        "id": "http-response-buscar",
+        "type": "http response",
+        "z": "consultas-flow",
+        "name": "Resposta Busca",
+        "statusCode": "",
+        "headers": {},
+        "x": 920,
+        "y": 500,
+        "wires": []
+    }
+]

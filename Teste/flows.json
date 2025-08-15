@@ -1,0 +1,259 @@
+[
+    {
+        "id": "api-integration-flow",
+        "label": "Integração com API REST",
+        "type": "tab",
+        "disabled": false,
+        "info": "Fluxo principal para integração com APIs REST e banco de dados"
+    },
+    {
+        "id": "http-in-1",
+        "type": "http in",
+        "z": "api-integration-flow",
+        "name": "Receber Dados da API",
+        "url": "/api/receive",
+        "method": "post",
+        "upload": false,
+        "swaggerDoc": "",
+        "x": 120,
+        "y": 100,
+        "wires": [
+            [
+                "json-parse-1",
+                "log-1"
+            ]
+        ]
+    },
+    {
+        "id": "json-parse-1",
+        "type": "json",
+        "z": "api-integration-flow",
+        "name": "Parsear JSON",
+        "property": "payload",
+        "action": "",
+        "pretty": false,
+        "x": 320,
+        "y": 100,
+        "wires": [
+            [
+                "function-validate-1"
+            ]
+        ]
+    },
+    {
+        "id": "function-validate-1",
+        "type": "function",
+        "z": "api-integration-flow",
+        "name": "Validar Dados",
+        "func": "// Validar se os dados recebidos são válidos\nif (msg.payload && msg.payload.data) {\n    // Dados válidos, continuar processamento\n    msg.payload.validated = true;\n    msg.payload.timestamp = new Date().toISOString();\n    return msg;\n} else {\n    // Dados inválidos, retornar erro\n    msg.statusCode = 400;\n    msg.payload = {\n        error: \"Dados inválidos recebidos\",\n        received: msg.payload\n    };\n    return null;\n}",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 520,
+        "y": 100,
+        "wires": [
+            [
+                "function-process-1"
+            ]
+        ]
+    },
+    {
+        "id": "function-process-1",
+        "type": "function",
+        "z": "api-integration-flow",
+        "name": "Processar Dados",
+        "func": "// Processar e transformar os dados recebidos\nconst data = msg.payload.data;\n\n// Exemplo de processamento\nmsg.payload.processed = {\n    id: data.id || Date.now(),\n    nome: data.nome || 'Sem nome',\n    valor: parseFloat(data.valor) || 0,\n    categoria: data.categoria || 'Geral',\n    processado_em: new Date().toISOString()\n};\n\n// Adicionar metadados\nmsg.payload.metadata = {\n    origem: 'API_REST',\n    versao: '1.0',\n    processado_por: 'Node-RED'\n};\n\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 720,
+        "y": 100,
+        "wires": [
+            [
+                "db-insert-1",
+                "http-request-1"
+            ]
+        ]
+    },
+    {
+        "id": "db-insert-1",
+        "type": "mysql",
+        "z": "api-integration-flow",
+        "mydb": "mysql-config",
+        "name": "Inserir no Banco",
+        "x": 920,
+        "y": 80,
+        "sql": "INSERT INTO dados_api (id, nome, valor, categoria, processado_em, metadata) VALUES (?, ?, ?, ?, ?, ?)",
+        "x": 920,
+        "y": 80,
+        "wires": [
+            [
+                "function-response-1"
+            ]
+        ]
+    },
+    {
+        "id": "http-request-1",
+        "type": "http request",
+        "z": "api-integration-flow",
+        "name": "Enviar para Outra API",
+        "method": "POST",
+        "ret": "txt",
+        "paytoqs": "ignore",
+        "url": "http://localhost:8081/api/forward",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "authType": "",
+        "x": 920,
+        "y": 120,
+        "wires": [
+            [
+                "function-response-1"
+            ]
+        ]
+    },
+    {
+        "id": "function-response-1",
+        "type": "function",
+        "z": "api-integration-flow",
+        "name": "Preparar Resposta",
+        "func": "// Preparar resposta de sucesso\nmsg.statusCode = 200;\nmsg.payload = {\n    success: true,\n    message: \"Dados processados com sucesso\",\n    data: msg.payload.processed,\n    timestamp: new Date().toISOString()\n};\n\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 1120,
+        "y": 100,
+        "wires": [
+            [
+                "http-response-1"
+            ]
+        ]
+    },
+    {
+        "id": "http-response-1",
+        "type": "http response",
+        "z": "api-integration-flow",
+        "name": "Resposta HTTP",
+        "statusCode": "",
+        "headers": {},
+        "x": 1320,
+        "y": 100,
+        "wires": []
+    },
+    {
+        "id": "log-1",
+        "type": "debug",
+        "z": "api-integration-flow",
+        "name": "Log de Recebimento",
+        "active": true,
+        "tosidebar": true,
+        "console": true,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "x": 320,
+        "y": 140,
+        "wires": []
+    },
+    {
+        "id": "mysql-config",
+        "type": "mysql-config",
+        "z": "",
+        "name": "Configuração MySQL",
+        "host": "localhost",
+        "port": "3306",
+        "db": "seu_banco",
+        "tz": "",
+        "charset": "UTF8"
+    },
+    {
+        "id": "schedule-trigger-1",
+        "type": "inject",
+        "z": "api-integration-flow",
+        "name": "Agendador",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "300",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 120,
+        "y": 200,
+        "wires": [
+            [
+                "http-request-poll-1"
+            ]
+        ]
+    },
+    {
+        "id": "http-request-poll-1",
+        "type": "http request",
+        "z": "api-integration-flow",
+        "name": "Polling da API",
+        "method": "GET",
+        "ret": "txt",
+        "paytoqs": "ignore",
+        "url": "http://localhost:8080/api/dados",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "authType": "",
+        "x": 320,
+        "y": 200,
+        "wires": [
+            [
+                "function-process-poll-1"
+            ]
+        ]
+    },
+    {
+        "id": "function-process-poll-1",
+        "type": "function",
+        "z": "api-integration-flow",
+        "name": "Processar Dados do Polling",
+        "func": "// Processar dados recebidos do polling\nif (msg.statusCode === 200 && msg.payload) {\n    try {\n        const data = JSON.parse(msg.payload);\n        if (data && data.length > 0) {\n            // Processar cada item recebido\n            msg.payload = data.map(item => ({\n                ...item,\n                processado_em: new Date().toISOString(),\n                origem: 'POLLING'\n            }));\n            return msg;\n        }\n    } catch (e) {\n        node.error('Erro ao processar dados do polling: ' + e.message);\n    }\n}\nreturn null;",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 520,
+        "y": 200,
+        "wires": [
+            [
+                "db-batch-insert-1"
+            ]
+        ]
+    },
+    {
+        "id": "db-batch-insert-1",
+        "type": "mysql",
+        "z": "api-integration-flow",
+        "mydb": "mysql-config",
+        "name": "Inserção em Lote",
+        "sql": "INSERT INTO dados_polling (id, nome, valor, categoria, processado_em, origem) VALUES (?, ?, ?, ?, ?, ?)",
+        "x": 720,
+        "y": 200,
+        "wires": [
+            [
+                "log-success-1"
+            ]
+        ]
+    },
+    {
+        "id": "log-success-1",
+        "type": "debug",
+        "z": "api-integration-flow",
+        "name": "Log de Sucesso",
+        "active": true,
+        "tosidebar": true,
+        "console": true,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "x": 920,
+        "y": 200,
+        "wires": []
+    }
+]
